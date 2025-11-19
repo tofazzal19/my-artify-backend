@@ -68,6 +68,7 @@ const Favorite = mongoose.model('Favorite', favoriteSchema);
 const JWT_SECRET = 'e78067192c74487853498fc13cf20a1ebfd56a7c7609cec37e64501783357d7243ac7201f2f8c7073fb2c7d61b0048b1c8bb049bced5d5986f36800e8a28e4dc';
 
 // Auth Middleware
+// In server.js, update the authMiddleware function:
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
@@ -99,9 +100,22 @@ const authMiddleware = async (req, res, next) => {
     }
     
     req.user = user;
+    req.user.id = user._id.toString(); // Add this line
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid token' 
+      });
+    }
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Token expired' 
+      });
+    }
     res.status(401).json({ 
       success: false,
       message: 'Token is not valid' 
@@ -672,7 +686,11 @@ app.delete('/api/favorites/:artworkId', authMiddleware, async (req, res) => {
 // Seed initial data
 app.post('/api/seed', async (req, res) => {
   try {
-   
+    // Clear existing data
+    await Artwork.deleteMany({});
+    await User.deleteMany({});
+    await Favorite.deleteMany({});
+
     // Create sample users
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('Password123', salt);
@@ -814,8 +832,7 @@ app.post('/api/seed', async (req, res) => {
   }
 });
 
-
-//  Start server
+// Start server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
@@ -826,6 +843,3 @@ app.listen(PORT, () => {
   console.log(`   Email: demo@artify.com`);
   console.log(`   Password: Password123`);
 });
-
-
-
