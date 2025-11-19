@@ -9,7 +9,6 @@
 
 ## 🛠️ Tech Stack
 - React.js
-- Firebase Authentication
 - MongoDB
 - Express.js
 - React Router
