@@ -19,8 +19,7 @@ const MONGODB_URI = 'mongodb+srv://SimpleDBUser:c9yW9DHUFuOy7wHi@cluster0.jflpcd
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 20000,
-        socketTimeoutMS: 20000,
+  
 }).then(() => {
   console.log('✅ Connected to MongoDB');
 }).catch(err => {
