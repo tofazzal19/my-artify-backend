@@ -13,19 +13,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
-const MONGODB_URI = 'mongodb+srv://SimpleDBUser:c9yW9DHUFuOy7wHi@cluster0.jflpcdt.mongodb.net/artify?tls=true&tlsAllowInvalidCertificates=trueretryWrites=true&w=majority&appName=Cluster0';
+app.get("/",(req,res)=>{
+res.send("server is running")
+})
 
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 10000,
-        socketTimeoutMS: 10000,
-}).then(() => {
-  console.log('✅ Connected to MongoDB');
-}).catch(err => {
-  console.error('❌ MongoDB connection error:', err);
-});
+// MongoDB Connection
+mongoose.set("strictQuery", true);
+
+async function connectDB() {
+  try {
+    await mongoose.connect("mongodb+srv://SimpleDBUser:c9yW9DHUFuOy7wHi@cluster0.jflpcdt.mongodb.net/artify?retryWrites=true&w=majority", {
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+    });
+
+    console.log("MongoDB Connected");
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error:", err.message);
+  }
+}
+
+connectDB();
 
 // MongoDB Schemas
 const userSchema = new mongoose.Schema({
