@@ -29,9 +29,10 @@ mongoose.connect(MONGODB_URI, {
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  password: { type: String, default: '' },
   photoURL: { type: String, default: '' },
   googleId: { type: String, default: '' },
+  githubId: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -68,7 +69,6 @@ const Favorite = mongoose.model('Favorite', favoriteSchema);
 const JWT_SECRET = 'e78067192c74487853498fc13cf20a1ebfd56a7c7609cec37e64501783357d7243ac7201f2f8c7073fb2c7d61b0048b1c8bb049bced5d5986f36800e8a28e4dc';
 
 // Auth Middleware
-// In server.js, update the authMiddleware function:
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
@@ -100,7 +100,7 @@ const authMiddleware = async (req, res, next) => {
     }
     
     req.user = user;
-    req.user.id = user._id.toString(); // Add this line
+    req.user.id = user._id.toString();
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
@@ -122,6 +122,7 @@ const authMiddleware = async (req, res, next) => {
     });
   }
 };
+
 // Routes
 
 // Health check
@@ -137,9 +138,43 @@ app.get('/api/health', (req, res) => {
 // Public routes - no auth required
 app.get('/api/artworks', async (req, res) => {
   try {
-    const artworks = await Artwork.find({ visibility: 'public' })
+    const { page = 1, search = '', category = '', sort = 'newest' } = req.query;
+    const limit = 12;
+    const skip = (page - 1) * limit;
+    
+    let query = { visibility: 'public' };
+    
+    // Search functionality
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { artistName: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Category filter
+    if (category) {
+      query.category = category;
+    }
+    
+    // Sort functionality
+    let sortOptions = {};
+    switch (sort) {
+      case 'oldest':
+        sortOptions = { createdAt: 1 };
+        break;
+      case 'most-liked':
+        sortOptions = { likes: -1 };
+        break;
+      default: // newest
+        sortOptions = { createdAt: -1 };
+    }
+    
+    const artworks = await Artwork.find(query)
       .populate('artistId', 'name email photoURL')
-      .sort({ createdAt: -1 });
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limit);
     
     res.json({ 
       success: true,
@@ -215,6 +250,58 @@ app.get('/api/artworks/:id', async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error fetching artwork' 
+    });
+  }
+});
+
+// Mock Social Login endpoint
+app.post('/api/auth/mock-social', async (req, res) => {
+  try {
+    const { provider } = req.body;
+    
+    if (!provider) {
+      return res.status(400).json({
+        success: false,
+        message: 'Provider is required'
+      });
+    }
+
+    // Create unique email based on provider
+    const email = `${provider}_user_${Date.now()}@artify.com`;
+    const name = `${provider.charAt(0).toUpperCase() + provider.slice(1)} User`;
+    
+    // Check if user exists
+    let user = await User.findOne({ email });
+    
+    if (!user) {
+      user = new User({
+        name,
+        email,
+        photoURL: `https://i.ibb.co.com/WNjkBs1C/Myprof.png`,
+        [`${provider}Id`]: `mock_${provider}_${Date.now()}`
+      });
+      await user.save();
+    }
+
+    // Create JWT token
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        photoURL: user.photoURL
+      },
+      token
+    });
+
+  } catch (error) {
+    console.error('Mock social login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Social login failed'
     });
   }
 });
@@ -543,7 +630,7 @@ app.post('/api/artworks/:id/like', authMiddleware, async (req, res) => {
   }
 });
 
-// Favorites Routes - FIXED
+// Favorites Routes
 app.get('/api/favorites/:userId', authMiddleware, async (req, res) => {
   try {
     // Verify the user is accessing their own data
@@ -630,7 +717,7 @@ app.post('/api/favorites', authMiddleware, async (req, res) => {
     });
 
     if (existingFavorite) {
-      return res.status(200).json({ // Changed to 200 to avoid error
+      return res.status(200).json({
         success: true,
         message: 'Already in favorites' 
       });
