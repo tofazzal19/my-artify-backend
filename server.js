@@ -14,11 +14,13 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection
-const MONGODB_URI = 'mongodb+srv://SimpleDBUser:c9yW9DHUFuOy7wHi@cluster0.jflpcdt.mongodb.net/artify?retryWrites=true&w=majority&appName=Cluster0';
+const MONGODB_URI = 'mongodb+srv://SimpleDBUser:c9yW9DHUFuOy7wHi@cluster0.jflpcdt.mongodb.net/artify?tls=true&tlsAllowInvalidCertificates=trueretryWrites=true&w=majority&appName=Cluster0';
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 20000,
+        socketTimeoutMS: 20000,
 }).then(() => {
   console.log('✅ Connected to MongoDB');
 }).catch(err => {
